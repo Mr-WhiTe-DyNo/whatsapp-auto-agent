@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>WhatsApp Agent</title>
+<style>body{font-family:Arial;background:#f3f4f6;margin:0;color:#111827}header{background:#111827;color:white;padding:18px}.wrap{max-width:900px;margin:auto;padding:15px}.card{background:white;padding:18px;border-radius:14px;margin:12px 0;box-shadow:0 4px 15px #0001}button,input,textarea,select{padding:10px;border-radius:8px;border:1px solid #ddd}button{background:#111827;color:white;border:0}input,textarea{width:100%;margin:5px 0 10px;box-sizing:border-box}#qr img{max-width:280px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #eee;text-align:left}</style></head>
+<body><header><b>ðŸ¤– WhatsApp Auto Agent</b> <span id="st">Loading...</span></header><div class="wrap">
+<div class="card"><h2>ðŸ“± Connect WhatsApp</h2><p>Open this page and scan the QR from WhatsApp â†’ Linked Devices â†’ Link a Device.</p><div id="qr">Waiting for QR...</div></div>
+<div class="card"><h2>ðŸ’³ Payment Details</h2><input id="j" placeholder="JazzCash"><input id="e" placeholder="Easypaisa"><textarea id="b" placeholder="Bank details"></textarea><button onclick="pay()">Save</button></div>
+<div class="card"><h2>ðŸ›’ Catalog</h2><div id="p"></div><button onclick="saveP()">Save Catalog</button></div>
+<div class="card"><h2>ðŸ“¦ Orders</h2><div id="o"></div></div></div>
+<script>
+let d;
+async function get(u){return (await fetch(u)).json()}
+async function load(){d=await get('/api/data');j.value=d.payment.jazzcash;e.value=d.payment.easypaisa;b.value=d.payment.bank;
+p.innerHTML=d.products.map((x,i)=>`<div><input class="pn" data-i="${i}" value="${esc(x.name)}">${x.plans.map((q,k)=>`<input class="ln" data-i="${i}" data-k="${k}" value="${esc(q[0])}"><input type="number" class="pr" data-i="${i}" data-k="${k}" value="${q[1]}">`).join('')}</div>`).join('');
+o.innerHTML=d.orders.length?'<table><tr><th>ID</th><th>Product</th><th>Total</th><th>Status</th></tr>'+d.orders.map(x=>`<tr><td>${x.id}</td><td>${x.product}</td><td>Rs ${x.total}</td><td><select onchange="status('${x.id}',this.value)"><option>Pending</option><option>Paid</option><option>Completed</option></select></td></tr>`).join('')+'</table>':'No orders yet.'}
+async function poll(){let x=await get('/api/status');st.textContent=x.ready?'ðŸŸ¢ Connected':'ðŸŸ¡ '+x.state;qr.innerHTML=x.qr?`<img src="${x.qr}">`:'Waiting for QR...';setTimeout(poll,3000)}
+async function pay(){await fetch('/api/payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jazzcash:j.value,easypaisa:e.value,bank:b.value})});load()}
+async function saveP(){document.querySelectorAll('.pn').forEach(x=>d.products[x.dataset.i].name=x.value);document.querySelectorAll('.ln').forEach(x=>d.products[x.dataset.i].plans[x.dataset.k][0]=x.value);document.querySelectorAll('.pr').forEach(x=>d.products[x.dataset.i].plans[x.dataset.k][1]=+x.value);await fetch('/api/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({products:d.products})});load()}
+async function status(id,s){await fetch('/api/orders/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})});load()}
+function esc(x){return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}load();poll();
+</script></body></html>
